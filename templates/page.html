@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <title>Camera Surveillance System - Interactive Adjusted</title>
+    <style>
+        .camera-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .camera-feed {
+            width: 48%;
+            height: 250px;
+            position: relative;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+        .camera-feed:hover {
+            z-index: 2;
+            transform: scale(1.05);
+            margin: -5% -5%;
+            width: 58%;
+            height: 310px;
+        }
+
+
+        .replay-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 20px;
+            height: 20px;
+            background-color: #007bff;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+        }
+
+        .recording-button {
+            position: absolute;
+            top: 10px;
+            left: 45px;
+            width: 20px;
+            height: 20px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        #videoPlayer {
+            width: 100%;  /* 宽度自适应屏幕 */
+            z-index: 10; /* 确保播放器位于页面元素之上 */
+        }
+    </style>
+</head>
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li><strong>Camera Surveillance System</strong></li>
+        </ul>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#" role="button">Contact</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        <div class="camera-container">
+            {% for camera_id in camera_ids %}
+            <div class="camera-feed">Camera {{ camera_id }} Stream
+                <button class="replay-button" onclick="showReplayModal('modal{{ camera_id }}', {{ camera_id }})">Replay</button>
+                <button class="recording-button" data-camera-id="{{ camera_id }}" data-recording="false">Record Camera {{ camera_id }}</button>
+                <img src="{{ url_for('video', camera_id=camera_id) }}" width="100%" height="100%">
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Dynamically create Replay Modals based on camera_ids -->
+        {% for camera_id in camera_ids %}
+        <div id="modal{{ camera_id }}" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('modal{{ camera_id }}')">&times;</span>
+                <h5>Choose the video</h5>
+                <ul id="videoListCamera{{ camera_id }}"></ul>
+            </div>
+        </div>
+        {% endfor %}
+        <video id="videoPlayer" controls>
+            <source src="" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </main>
+    <script>
+       function showReplayModal(modalId, cameraId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = "block";  // 显示模态框
+
+            const videoListElement = modal.querySelector('ul');  // 确保每个模态框都有自己的 ul 元素
+            fetch(`/list_videos/${cameraId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.videos) {
+                        videoListElement.innerHTML = '';  // 清空现有列表
+                        data.videos.forEach(video => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = video;
+                            listItem.style.cursor = 'pointer';
+                            listItem.onclick = () => playVideo(cameraId, video);  // 添加点击事件
+                            videoListElement.appendChild(listItem);
+                        });
+                    } else {
+                        alert('Failed to load video list.');
+                    }
+                });
+        }
+
+        function playVideo(cameraId, videoFileName) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.src = `/static/videos/camera_${cameraId}/${videoFileName}`;  // 更新路径以包含子文件夹
+            videoPlayer.load();  // 重新加载视频源
+            videoPlayer.play();  // 播放视频
+            closeModal(`modal${cameraId}`);  // 假设modalId以1开始而cameraId以0开始
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+        }
+        // Function to make a single replay button blink
+        function blinkReplayButton(button) {
+            button.style.animation = 'none'; // Reset the animation
+            setTimeout(function() { // Trigger a reflow in between
+                button.style.animation = 'blink 1s ease';
+            }, 10);
+        }
+
+        // Function to start blinking at random intervals for each button
+        function startRandomBlinkingForButton(button) {
+            // Set a random time for the blink to occur, between 1 to 5 seconds
+            var randomTime = Math.floor(Math.random() * 5000) + 1000;
+            setTimeout(function() {
+                blinkReplayButton(button);
+                startRandomBlinkingForButton(button); // Schedule the next blink for this button
+            }, randomTime);
+        }
+
+        // Start the blinking process for all replay buttons
+        document.querySelectorAll('.replay-button').forEach(startRandomBlinkingForButton);
+        
+        document.querySelectorAll('.recording-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const cameraId = this.getAttribute('data-camera-id');
+                const isRecording = this.getAttribute('data-recording') === 'true';
+                toggleRecording(cameraId, isRecording, this);
+            });
+        });
+
+        function toggleRecording(cameraId, isRecording, button) {
+            button.disabled = true;
+
+            const actionUrl = isRecording ? `/stop_recording/${cameraId}` : `/start_recording/${cameraId}`;
+
+            fetch(actionUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const newStatus = !isRecording;
+                    button.setAttribute('data-recording', newStatus.toString());
+                    button.innerText = newStatus ? `Stop Recording Camera ${cameraId}` : `Record Camera ${cameraId}`;
+                } else {
+                    alert(`Failed to toggle recording for camera ${cameraId}.`);
+                }
+            })
+            .finally(() => {
+                button.disabled = false;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notification");
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        var notification = new Notification("Hi there!", {
+                            body: "We detected some unusual activities in your camera surveillance system. Click here to view the live stream.",
+                            icon: "a-simple-button.png"
+                        });
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

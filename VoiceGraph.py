@@ -14,7 +14,7 @@ class AudioProcessor:
         self.p = pyaudio.PyAudio()
         self.sr = sr.Recognizer()
         self.mc = sr.Microphone()
-        self.text_dictionary = ["hello", "world", "test", "example"]  # 假定的文字字典
+        self.text_dictionary = ["靠北", "靠杯", "靠背", "你他媽", "他媽的", "肏你媽", "操你媽", "幹", "三小", "沙小", "啥小", "媽的", "操", "操", "肏", "他媽", "挖肏", "幹你娘", "幹您娘", "乾", "靠邀"]  # 假定的文字字典
         self.recent_matches = []  # 存儲最近的匹配狀態
         self.high_db_chunks = 0  # 高分貝音頻塊計數
         self.last_check_time = time.time()  # 上次檢查時間
